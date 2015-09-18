@@ -36,6 +36,9 @@ then
   cd $BASE/src
   gn gen out/Release
   gn args out/Release
+
+  cd $BASE/src/third_party/WebKit
+  git am -3 $BASE/patches/*patch
 fi
 
 cd $BASE/src
