@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<div id="div"/></div>
+<canvas id="c" width="500" height="500" style="border:1px solid">
+</canvas>
+
+<p>
+<button onclick="startWorker1()">Start the #1 worker</button> 
+<button onclick="stopWorker1()">Stop the #1 worker</button>
+</p>
+<p>
+<button onclick="startWorker2()">Start the #2 worker</button> 
+<button onclick="stopWorker2()">Stop the #2 worker</button>
+</p>
+<p>
+<button onclick="startWorker3()">Start the #3 worker</button> 
+<button onclick="stopWorker3()">Stop the #3 worker</button>
+</p>
+<p>
+<button onclick="startWorker4()">Start the #4 worker</button> 
+<button onclick="stopWorker4()">Stop the #4 worker</button>
+</p>
+
+<p><strong>Note:</strong> Testing The Canvas Web Workers.</p>
+
+<script>
+
+
+
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext('2d');
+
+
+function myFunction() {
+    var canvas = document.getElementById("c");
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = "rgb(0,255,255)";
+//    ctx.fillRect(0, 0, 55, 50);
+
+}
+
+
+function myFunction2() {
+    var canvas = document.getElementById("c");
+     var ctx = canvas.getContext('2d');
+    ctx.fillStyle = "rgb(255,255,0)";
+    ctx.fillRect(0, 0, 55, 50);
+}
+
+myFunction();
+//setInterval(function(){ myFunction(); }, 3000);
+
+//setTimeout(function() {setInterval(function(){ myFunction2(); }, 3000);}, 1000);
+
+var worker1;
+var worker2;
+var worker3;
+var worker4;
+
+function startWorker1() {
+    if(typeof(Worker) !== "undefined") {
+        var workerId = 1;
+        canvas.createWorker("demo_worker1.js", workerId);
+        worker1 = canvas.getWorker(workerId);
+        worker1.postMessage("do something");
+        worker1.onmessage = function(event) {
+        };
+
+    } else {
+        document.getElementById("result").innerHTML = "Sorry, your browser does not support Web Workers...";
+    }
+}
+
+function stopWorker1() { 
+    worker1.terminate();
+    worker1 = undefined;
+}
+
+function startWorker2() {
+    if(typeof(Worker) !== "undefined") {
+        var workerId = 2;
+        canvas.createWorker("demo_worker2.js", workerId);
+        worker2 = canvas.getWorker(workerId);
+        worker2.postMessage("do something");
+        worker2.onmessage = function(event) {
+        };
+
+    } else {
+        document.getElementById("result").innerHTML = "Sorry, your browser does not support Web Workers...";
+    }
+}
+
+function stopWorker2() { 
+    worker2.terminate();
+    worker2 = undefined;
+}
+
+function startWorker3() {
+    if(typeof(Worker) !== "undefined") {
+        var workerId = 3;
+        canvas.createWorker("demo_worker3.js", workerId);
+        worker3 = canvas.getWorker(workerId);
+        worker3.postMessage("do something");
+        worker3.onmessage = function(event) {
+        };
+
+    } else {
+        document.getElementById("result").innerHTML = "Sorry, your browser does not support Web Workers...";
+    }
+}
+
+function stopWorker3() { 
+    worker3.terminate();
+    worker3 = undefined;
+}
+
+function startWorker4() {
+    if(typeof(Worker) !== "undefined") {
+        var workerId = 4;
+        canvas.createWorker("demo_worker4.js", workerId);
+        worker4 =  canvas.getWorker(workerId);
+        worker4.postMessage("do something");
+        worker4.onmessage = function(event) {
+        };
+
+    } else {
+        document.getElementById("result").innerHTML = "Sorry, your browser does not support Web Workers...";
+    }
+}
+
+function stopWorker4() { 
+    worker4.terminate();
+    worker4 = undefined;
+}
+
+</script>
+
+</body>
+</html>

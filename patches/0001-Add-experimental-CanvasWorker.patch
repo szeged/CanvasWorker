@@ -1,0 +1,374 @@
+From 84e55b317eb1adc0f1e233b3dcb4f43a7b1d7ab7 Mon Sep 17 00:00:00 2001
+From: Gabor Loki <loki@inf.u-szeged.hu>
+Date: Fri, 18 Sep 2015 12:28:17 +0200
+Subject: [PATCH] Add experimental CanvasWorker
+
+Created by Robert Sipka
+Updated by Gabor Loki
+---
+ Source/core/html/HTMLAttributeNames.in             |  1 +
+ Source/core/html/HTMLCanvasElement.cpp             | 21 +++++++++++++++++++++
+ Source/core/html/HTMLCanvasElement.h               |  8 ++++++++
+ Source/core/html/HTMLCanvasElement.idl             |  4 ++++
+ Source/core/workers/DedicatedWorkerGlobalScope.cpp | 11 +++++++++++
+ Source/core/workers/DedicatedWorkerGlobalScope.h   |  5 +++++
+ Source/core/workers/DedicatedWorkerGlobalScope.idl |  1 +
+ Source/core/workers/InProcessWorkerBase.cpp        | 20 ++++++++++++++++++++
+ Source/core/workers/InProcessWorkerBase.h          |  9 +++++++++
+ Source/core/workers/Worker.idl                     |  1 +
+ Source/core/workers/WorkerMessagingProxy.cpp       |  2 ++
+ Source/core/workers/WorkerThread.cpp               |  8 ++++++++
+ Source/core/workers/WorkerThread.h                 |  5 +++++
+ public/platform/Platform.h                         |  2 +-
+ 14 files changed, 97 insertions(+), 1 deletion(-)
+
+diff --git a/Source/core/html/HTMLAttributeNames.in b/Source/core/html/HTMLAttributeNames.in
+index 298eb88..17d8f3c 100644
+--- a/Source/core/html/HTMLAttributeNames.in
++++ b/Source/core/html/HTMLAttributeNames.in
+@@ -320,4 +320,5 @@ vlink
+ vspace
+ webkitdirectory
+ width
++worker
+ wrap
+diff --git a/Source/core/html/HTMLCanvasElement.cpp b/Source/core/html/HTMLCanvasElement.cpp
+index 6dc6f92..43b2fc5 100644
+--- a/Source/core/html/HTMLCanvasElement.cpp
++++ b/Source/core/html/HTMLCanvasElement.cpp
+@@ -44,6 +44,7 @@
+ #include "core/html/canvas/CanvasRenderingContextFactory.h"
+ #include "core/layout/LayoutHTMLCanvas.h"
+ #include "core/paint/DeprecatedPaintLayer.h"
++#include "modules/canvas2d/CanvasRenderingContext2D.h"
+ #include "platform/MIMETypeRegistry.h"
+ #include "platform/RuntimeEnabledFeatures.h"
+ #include "platform/graphics/Canvas2DImageBufferSurface.h"
+@@ -105,6 +106,7 @@ inline HTMLCanvasElement::HTMLCanvasElement(Document& document)
+     : HTMLElement(canvasTag, document)
+     , DocumentVisibilityObserver(document)
+     , m_size(DefaultWidth, DefaultHeight)
++    , m_workerList()
+     , m_ignoreReset(false)
+     , m_accelerationDisabled(false)
+     , m_externallyAllocatedMemory(0)
+@@ -577,6 +579,25 @@ void HTMLCanvasElement::toBlob(FileCallback* callback, const String& mimeType, c
+     Platform::current()->mainThread()->taskRunner()->postTask(FROM_HERE, bind(&FileCallback::handleEvent, callback, resultBlob));
+ }
+ 
++RefPtr<Worker> HTMLCanvasElement::getWorker(const unsigned short& id) const
++{
++    WTF::Vector<RefPtr<Worker>>::const_iterator workerIt = m_workerList.begin();
++    for (; workerIt != m_workerList.end(); ++workerIt) {
++        if (id == (*workerIt)->id())
++            return *workerIt;
++    }
++    return nullptr;
++}
++
++
++void HTMLCanvasElement::createWorker(ExecutionContext* context, const String& url, const unsigned short& id, ExceptionState& exceptionState)
++{
++    RefPtr<Worker> worker = Worker::create(context, url, exceptionState);
++    worker->setContext(toCanvasRenderingContext2D(m_context.get()));
++    worker->setId(id);
++    m_workerList.append(worker);
++}
++
+ SecurityOrigin* HTMLCanvasElement::securityOrigin() const
+ {
+     return document().securityOrigin();
+diff --git a/Source/core/html/HTMLCanvasElement.h b/Source/core/html/HTMLCanvasElement.h
+index 7173957..5571681 100644
+--- a/Source/core/html/HTMLCanvasElement.h
++++ b/Source/core/html/HTMLCanvasElement.h
+@@ -36,6 +36,7 @@
+ #include "core/fileapi/FileCallback.h"
+ #include "core/html/HTMLElement.h"
+ #include "core/html/canvas/CanvasImageSource.h"
++#include "core/workers/Worker.h"
+ #include "platform/geometry/FloatRect.h"
+ #include "platform/geometry/IntSize.h"
+ #include "platform/graphics/GraphicsTypes.h"
+@@ -58,6 +59,7 @@ class ImageBuffer;
+ class ImageBufferSurface;
+ class ImageData;
+ class IntSize;
++class Worker;
+ 
+ class CORE_EXPORT CanvasObserver : public WillBeGarbageCollectedMixin {
+     DECLARE_EMPTY_VIRTUAL_DESTRUCTOR_WILL_BE_REMOVED(CanvasObserver);
+@@ -84,6 +86,7 @@ public:
+     // Attributes and functions exposed to script
+     int width() const { return size().width(); }
+     int height() const { return size().height(); }
++    RefPtr<Worker> getWorker(const unsigned short& id) const;
+ 
+     const IntSize& size() const { return m_size; }
+ 
+@@ -117,6 +120,8 @@ public:
+     void toBlob(FileCallback*, const String& mimeType, const ScriptValue& qualityArgument, ExceptionState&) const;
+     void toBlob(FileCallback* callback, const String& mimeType, ExceptionState& exceptionState) { return toBlob(callback, mimeType, ScriptValue(), exceptionState); }
+ 
++    void createWorker(ExecutionContext* context, const String& url, const unsigned short& id, ExceptionState& exceptionState);
++
+     // Used for rendering
+     void didDraw(const FloatRect&);
+     void notifyObserversCanvasChanged(const FloatRect&);
+@@ -215,6 +220,9 @@ private:
+ 
+     IntSize m_size;
+ 
++    WTF::Vector<RefPtr<Worker>> m_workerList;
++    RefPtr<Worker> m_worker;
++
+     OwnPtrWillBeMember<CanvasRenderingContext> m_context;
+ 
+     bool m_ignoreReset;
+diff --git a/Source/core/html/HTMLCanvasElement.idl b/Source/core/html/HTMLCanvasElement.idl
+index 4e7c0cf..4ccb368 100644
+--- a/Source/core/html/HTMLCanvasElement.idl
++++ b/Source/core/html/HTMLCanvasElement.idl
+@@ -48,6 +48,10 @@ interface HTMLCanvasElement : HTMLElement
+     //
+     [CallWith=ScriptState] any getContext(DOMString contextId, [PermissiveDictionaryConversion] optional CanvasContextCreationAttributes attributes);
+ 
++    Worker getWorker(unsigned short id);
++
++    [CallWith=ExecutionContext,RaisesException] void createWorker(DOMString url, unsigned short id);
++
+     // Note: The arguments argument is variadic in the spec, but not here as
+     // only one extra argument is actually used.
+     // FIXME: type should not have a default value.
+diff --git a/Source/core/workers/DedicatedWorkerGlobalScope.cpp b/Source/core/workers/DedicatedWorkerGlobalScope.cpp
+index b7cec07..5ef906b 100644
+--- a/Source/core/workers/DedicatedWorkerGlobalScope.cpp
++++ b/Source/core/workers/DedicatedWorkerGlobalScope.cpp
+@@ -53,12 +53,23 @@ PassRefPtrWillBeRawPtr<DedicatedWorkerGlobalScope> DedicatedWorkerGlobalScope::c
+ DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(const KURL& url, const String& userAgent, DedicatedWorkerThread* thread, double timeOrigin, const SecurityOrigin* starterOrigin, PassOwnPtrWillBeRawPtr<WorkerClients> workerClients)
+     : WorkerGlobalScope(url, userAgent, thread, timeOrigin, starterOrigin, workerClients)
+ {
++    m_canvasContext = NULL;
+ }
+ 
+ DedicatedWorkerGlobalScope::~DedicatedWorkerGlobalScope()
+ {
+ }
+ 
++void DedicatedWorkerGlobalScope::setCanvasContext(CanvasRenderingContext2D* canvasContext)
++{
++    m_canvasContext = canvasContext;
++}
++
++CanvasRenderingContext2D* DedicatedWorkerGlobalScope::context()
++{
++    return m_canvasContext;
++}
++
+ const AtomicString& DedicatedWorkerGlobalScope::interfaceName() const
+ {
+     return EventTargetNames::DedicatedWorkerGlobalScope;
+diff --git a/Source/core/workers/DedicatedWorkerGlobalScope.h b/Source/core/workers/DedicatedWorkerGlobalScope.h
+index 0bdf6c0..6ac4433 100644
+--- a/Source/core/workers/DedicatedWorkerGlobalScope.h
++++ b/Source/core/workers/DedicatedWorkerGlobalScope.h
+@@ -41,6 +41,7 @@ namespace blink {
+ 
+ class DedicatedWorkerThread;
+ class WorkerThreadStartupData;
++class CanvasRenderingContext2D;
+ 
+ class CORE_EXPORT DedicatedWorkerGlobalScope final : public WorkerGlobalScope {
+     DEFINE_WRAPPERTYPEINFO();
+@@ -67,8 +68,12 @@ public:
+ 
+     DECLARE_VIRTUAL_TRACE();
+ 
++    void setCanvasContext(CanvasRenderingContext2D*);
++    CanvasRenderingContext2D* context();
++
+ private:
+     DedicatedWorkerGlobalScope(const KURL&, const String& userAgent, DedicatedWorkerThread*, double timeOrigin, const SecurityOrigin*, PassOwnPtrWillBeRawPtr<WorkerClients>);
++    CanvasRenderingContext2D* m_canvasContext;
+ };
+ 
+ } // namespace blink
+diff --git a/Source/core/workers/DedicatedWorkerGlobalScope.idl b/Source/core/workers/DedicatedWorkerGlobalScope.idl
+index 1fe2730..113efa9 100644
+--- a/Source/core/workers/DedicatedWorkerGlobalScope.idl
++++ b/Source/core/workers/DedicatedWorkerGlobalScope.idl
+@@ -36,4 +36,5 @@
+ ] interface DedicatedWorkerGlobalScope : WorkerGlobalScope {
+     [PostMessage, RaisesException] void postMessage(any message, optional sequence<Transferable> transfer);
+     attribute EventHandler onmessage;
++    CanvasRenderingContext2D context();
+ };
+diff --git a/Source/core/workers/InProcessWorkerBase.cpp b/Source/core/workers/InProcessWorkerBase.cpp
+index 254bdf5..e4c7140 100644
+--- a/Source/core/workers/InProcessWorkerBase.cpp
++++ b/Source/core/workers/InProcessWorkerBase.cpp
+@@ -81,6 +81,26 @@ bool InProcessWorkerBase::hasPendingActivity() const
+     return (m_contextProxy && m_contextProxy->hasPendingActivity()) || m_scriptLoader;
+ }
+ 
++void InProcessWorkerBase::setContext(CanvasRenderingContext2D* context)
++{
++    m_context = context;
++}
++
++const unsigned short& InProcessWorkerBase::id() const
++{
++    return m_id;
++}
++
++void InProcessWorkerBase::setId(const unsigned short& id)
++{
++    m_id = id;
++}
++
++CanvasRenderingContext2D* InProcessWorkerBase::context()
++{
++    return m_context;
++}
++
+ ContentSecurityPolicy* InProcessWorkerBase::contentSecurityPolicy()
+ {
+     if (m_scriptLoader)
+diff --git a/Source/core/workers/InProcessWorkerBase.h b/Source/core/workers/InProcessWorkerBase.h
+index 94818b6..3960a97 100644
+--- a/Source/core/workers/InProcessWorkerBase.h
++++ b/Source/core/workers/InProcessWorkerBase.h
+@@ -23,6 +23,7 @@ class ExceptionState;
+ class ExecutionContext;
+ class WorkerGlobalScopeProxy;
+ class WorkerScriptLoader;
++class CanvasRenderingContext2D;
+ 
+ // Base class for workers that operate in the same process as the document that
+ // creates them.
+@@ -37,6 +38,11 @@ public:
+     void stop() override;
+     bool hasPendingActivity() const override;
+ 
++    CanvasRenderingContext2D* context();
++    void setContext(CanvasRenderingContext2D* context);
++    void setId(const unsigned short& id);
++    const unsigned short& id() const;
++
+     ContentSecurityPolicy* contentSecurityPolicy();
+ 
+     DEFINE_ATTRIBUTE_EVENT_LISTENER(message);
+@@ -59,6 +65,9 @@ private:
+     RefPtr<WorkerScriptLoader> m_scriptLoader;
+     RefPtrWillBeMember<ContentSecurityPolicy> m_contentSecurityPolicy;
+     WorkerGlobalScopeProxy* m_contextProxy; // The proxy outlives the worker to perform thread shutdown.
++
++    CanvasRenderingContext2D* m_context;
++    unsigned short m_id;
+ };
+ 
+ } // namespace blink
+diff --git a/Source/core/workers/Worker.idl b/Source/core/workers/Worker.idl
+index c1b4a8e..6aff83b 100644
+--- a/Source/core/workers/Worker.idl
++++ b/Source/core/workers/Worker.idl
+@@ -40,6 +40,7 @@
+     // TODO(philipj): The SerializedScriptValue type should be any.
+     [PostMessage, RaisesException] void postMessage(SerializedScriptValue message, optional sequence<Transferable> transfer);
+     attribute EventHandler onmessage;
++    CanvasRenderingContext2D context();
+ };
+ 
+ Worker implements AbstractWorker;
+diff --git a/Source/core/workers/WorkerMessagingProxy.cpp b/Source/core/workers/WorkerMessagingProxy.cpp
+index 47e5310..43123f2 100644
+--- a/Source/core/workers/WorkerMessagingProxy.cpp
++++ b/Source/core/workers/WorkerMessagingProxy.cpp
+@@ -119,6 +119,8 @@ void WorkerMessagingProxy::startWorkerGlobalScope(const KURL& scriptURL, const S
+     m_loaderProxy = WorkerLoaderProxy::create(this);
+     RefPtr<WorkerThread> thread = createWorkerThread(originTime);
+     thread->start(startupData.release());
++    if (m_workerObject)
++        thread->setCanvasContext(m_workerObject->context());
+     workerThreadCreated(thread);
+     m_workerInspectorProxy->workerThreadCreated(m_executionContext.get(), m_workerThread.get(), scriptURL);
+ }
+diff --git a/Source/core/workers/WorkerThread.cpp b/Source/core/workers/WorkerThread.cpp
+index e417141..c5f935f 100644
+--- a/Source/core/workers/WorkerThread.cpp
++++ b/Source/core/workers/WorkerThread.cpp
+@@ -158,6 +158,7 @@ WorkerThread::WorkerThread(PassRefPtr<WorkerLoaderProxy> workerLoaderProxy, Work
+     : m_started(false)
+     , m_terminated(false)
+     , m_shutdown(false)
++    , m_canvasContext(NULL)
+     , m_workerLoaderProxy(workerLoaderProxy)
+     , m_workerReportingProxy(workerReportingProxy)
+     , m_webScheduler(nullptr)
+@@ -205,6 +206,10 @@ PlatformThreadId WorkerThread::platformThreadId()
+     return backingThread().platformThread().threadId();
+ }
+ 
++void WorkerThread::setCanvasContext(CanvasRenderingContext2D* context) {
++    m_canvasContext = context;
++}
++
+ void WorkerThread::initialize(PassOwnPtr<WorkerThreadStartupData> startupData)
+ {
+     KURL scriptURL = startupData->m_scriptURL;
+@@ -237,6 +242,9 @@ void WorkerThread::initialize(PassOwnPtr<WorkerThreadStartupData> startupData)
+         }
+         m_workerGlobalScope = createWorkerGlobalScope(startupData);
+         m_workerGlobalScope->scriptLoaded(sourceCode.length(), cachedMetaData.get() ? cachedMetaData->size() : 0);
++        DedicatedWorkerGlobalScope* dedicatedGlobalScope = static_cast<DedicatedWorkerGlobalScope*>(m_workerGlobalScope.get());
++        if (dedicatedGlobalScope)
++            dedicatedGlobalScope->setCanvasContext(m_canvasContext);
+ 
+         // The corresponding call to didStopRunLoop() is in ~WorkerScriptController().
+         didStartRunLoop();
+diff --git a/Source/core/workers/WorkerThread.h b/Source/core/workers/WorkerThread.h
+index 207c94b..0b19d46 100644
+--- a/Source/core/workers/WorkerThread.h
++++ b/Source/core/workers/WorkerThread.h
+@@ -49,6 +49,7 @@ class WorkerInspectorController;
+ class WorkerMicrotaskRunner;
+ class WorkerReportingProxy;
+ class WorkerThreadStartupData;
++class CanvasRenderingContext2D;
+ 
+ enum WorkerThreadStartMode {
+     DontPauseWorkerGlobalScopeOnStart,
+@@ -120,6 +121,8 @@ public:
+     void interruptAndDispatchInspectorCommands();
+     void setWorkerInspectorController(WorkerInspectorController*);
+ 
++    void setCanvasContext(CanvasRenderingContext2D* context);
++
+ protected:
+     WorkerThread(PassRefPtr<WorkerLoaderProxy>, WorkerReportingProxy&);
+ 
+@@ -159,6 +162,8 @@ private:
+     MessageQueue<WebTaskRunner::Task> m_debuggerMessageQueue;
+     OwnPtr<WebThread::TaskObserver> m_microtaskRunner;
+ 
++    CanvasRenderingContext2D* m_canvasContext;
++
+     RefPtr<WorkerLoaderProxy> m_workerLoaderProxy;
+     WorkerReportingProxy& m_workerReportingProxy;
+     RawPtr<WebScheduler> m_webScheduler; // Not owned.
+diff --git a/public/platform/Platform.h b/public/platform/Platform.h
+index 7d6cb90..ef55864 100644
+--- a/public/platform/Platform.h
++++ b/public/platform/Platform.h
+@@ -609,7 +609,7 @@ public:
+     // locking the screen or if the platform cannot provide a context with suitable performance characteristics.
+     //
+     // This value must be checked again after a context loss event as the platform's capabilities may have changed.
+-    virtual bool canAccelerate2dCanvas() { return false; }
++    virtual bool canAccelerate2dCanvas() { printf("false\n"); return false; }
+ 
+     virtual bool isThreadedCompositingEnabled() { return false; }
+     virtual bool isThreadedAnimationEnabled() { return true; }
+-- 
+1.9.1
+
