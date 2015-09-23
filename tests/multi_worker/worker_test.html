@@ -1,3 +1,29 @@
+<!--
+ Copyright (C) 2015 University of Szeged
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY UNIVERSITY OF SZEGED AND CONTRIBUTORS
+ ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL UNIVERSITY OF
+ SZEGED OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+
 <!DOCTYPE html>
 <html>
 <body>
@@ -7,19 +33,19 @@
 </canvas>
 
 <p>
-<button onclick="startWorker1()">Start the #1 worker</button> 
+<button onclick="startWorker1()">Start the #1 worker</button>
 <button onclick="stopWorker1()">Stop the #1 worker</button>
 </p>
 <p>
-<button onclick="startWorker2()">Start the #2 worker</button> 
+<button onclick="startWorker2()">Start the #2 worker</button>
 <button onclick="stopWorker2()">Stop the #2 worker</button>
 </p>
 <p>
-<button onclick="startWorker3()">Start the #3 worker</button> 
+<button onclick="startWorker3()">Start the #3 worker</button>
 <button onclick="stopWorker3()">Stop the #3 worker</button>
 </p>
 <p>
-<button onclick="startWorker4()">Start the #4 worker</button> 
+<button onclick="startWorker4()">Start the #4 worker</button>
 <button onclick="stopWorker4()">Stop the #4 worker</button>
 </p>
 
@@ -37,8 +63,6 @@ function myFunction() {
     var canvas = document.getElementById("c");
     var ctx = canvas.getContext('2d');
     ctx.fillStyle = "rgb(0,255,255)";
-//    ctx.fillRect(0, 0, 55, 50);
-
 }
 
 
@@ -50,9 +74,6 @@ function myFunction2() {
 }
 
 myFunction();
-//setInterval(function(){ myFunction(); }, 3000);
-
-//setTimeout(function() {setInterval(function(){ myFunction2(); }, 3000);}, 1000);
 
 var worker1;
 var worker2;
@@ -73,7 +94,7 @@ function startWorker1() {
     }
 }
 
-function stopWorker1() { 
+function stopWorker1() {
     worker1.terminate();
     worker1 = undefined;
 }
@@ -92,7 +113,7 @@ function startWorker2() {
     }
 }
 
-function stopWorker2() { 
+function stopWorker2() {
     worker2.terminate();
     worker2 = undefined;
 }
@@ -111,7 +132,7 @@ function startWorker3() {
     }
 }
 
-function stopWorker3() { 
+function stopWorker3() {
     worker3.terminate();
     worker3 = undefined;
 }
@@ -130,7 +151,7 @@ function startWorker4() {
     }
 }
 
-function stopWorker4() { 
+function stopWorker4() {
     worker4.terminate();
     worker4 = undefined;
 }
