@@ -5,7 +5,7 @@ BASE=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 KILL="killall chrome 2>/dev/null"
 CHROME=$BASE/src/out/Release/chrome
 USERDIR="$HOME/.config/google-chrome-dev"
-PARAMS="--no-sandbox --allow-file-access-from-files --user-data-dir=$USERDIR"
+PARAMS="--disable-infobars --no-sandbox --allow-file-access-from-files --user-data-dir=$USERDIR"
 EXEC="$CHROME $PARAMS"
 TDIR=""
 
