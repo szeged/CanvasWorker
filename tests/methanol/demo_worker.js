@@ -30,26 +30,21 @@ function redraw(ctx) {
         ctx.arc(x, y, 60, 0, angle, true);
         ctx.closePath();
         ctx.fill();
-        
+
         ctx.stroke();
-       
+
     }
 
 }
 
 self.onmessage = function(e) {
-    console.log("message from worker");
     var data = e.data;
     if (drawing == true)
     {
         drawing = false;
-     //   context().fillRect(20, 20, 55, 50);
         redraw(context());
         drawing = true;
     }
-    
-    self.postMessage("drawed");
 
+    self.postMessage("done");
 }
-
-// </script>
