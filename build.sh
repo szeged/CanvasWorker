@@ -25,7 +25,11 @@ then
   # Move everything to its final place
   cd $BASE/tmp
   mv $BASE/tmp/src $BASE/
+  ls -l $BASE/tmp/
+  mv $BASE/tmp/.* $BASE/
+  rm -rf $BASE/tmp
 
+  cd $BASE/src
   # Move to Last Known Good Revision
   git checkout -B canvasWorker $LKGR
   gclient sync
@@ -34,8 +38,7 @@ then
 
   # Setup build env
   cd $BASE/src
-  gn gen out/Release
-  gn args out/Release
+  ./build/gyp_chromium
 
   cd $BASE/src/third_party/WebKit
   git am -3 $BASE/patches/*patch
@@ -43,5 +46,10 @@ fi
 
 cd $BASE/src
 
+if [ "x$ICECC_VERSION" != "x" ]
+then
+  JOBS="-j 40"
+fi
+
 # Start the build
-ninja -C out/Release chrome
+ninja -C out/Release $JOBS chrome
