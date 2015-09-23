@@ -1,8 +1,6 @@
 #!/bin/bash
 
-RELDIR=`dirname $0;`
-BASE=`cd $RELDIR;pwd`
-
+BASE=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 cd $BASE
 
